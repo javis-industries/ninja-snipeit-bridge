@@ -1,0 +1,11 @@
+{
+  "name": "ninja-snipeit-bridge",
+  "version": "1.0.0",
+  "description": "An integration that adds devices added to ninja to a SnipeIT Instance",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
