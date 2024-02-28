@@ -17,7 +17,18 @@ let snipeitDevices;
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.send(`<button onclick=${refreshFunction()} type="button">Refresh!</button>`);
+  res.send(`<div>
+              <h1>Click to Refresh Devices</h1>
+              <button onclick="triggerRefresh()" type="button">Refresh!</button>
+              <script>
+                function triggerRefresh() {
+                  fetch('http://localhost:3000/trigger-refresh')
+                  .then(response => response.text())
+                  .then(data => console.log(data))
+                  .catch(error => console.error('Error:', error));
+                }
+              </script>
+            <div>`);
 });
 
 app.get('/refresh', (req, res) => {
@@ -26,7 +37,12 @@ app.get('/refresh', (req, res) => {
   refreshFunction();
 })
 
-cron.schedule('30 * * * *', () => {
+app.get('/trigger-refresh', (req, res) => {
+  refreshFunction();
+  res.send('Refresh triggered!');
+});
+
+cron.schedule('0 * * * *', () => {
   
   refreshFunction();
   console.log('Scheduled refresh executed!');
