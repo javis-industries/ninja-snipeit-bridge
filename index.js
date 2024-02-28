@@ -10,17 +10,9 @@ const secrets = JSON.parse(fs.readFileSync(secretsPath, 'utf-8'));
 const app = express();
 const port = 443;
 
-const url = 'https://app.ninjarmm.com/ws/oauth/token';
-const options = {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  body: new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: secrets.client_id,
-    client_secret: secrets.client_secret,
-    scope: 'management monitoring',
-  }),
-};
+let ninjaDevices
+
+
 
 app.get('/refresh', (req, res) => {
   res.send('Refresh triggered!')
@@ -34,6 +26,19 @@ cron.schedule('0 * * * *', () => {
 
 
 function refreshFunction() {
+
+  const url = 'https://app.ninjarmm.com/ws/oauth/token';
+  const options = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: secrets.client_id,
+      client_secret: secrets.client_secret,
+      scope: 'management monitoring',
+    }),
+  };
+
   fetch(url, options)
   .then((response) => {
     if (!response.ok) {
@@ -69,7 +74,8 @@ function getDevices(values) {
       return response.json();
     })
     .then((data) => {
-      console.log(data);
+      ninjaDevices = data;
+      console.log(ninjaDevices);
     })
     .catch((error) => console.error('Error:', error));
 }
