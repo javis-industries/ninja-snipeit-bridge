@@ -2,23 +2,31 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cron = require('node-cron');
+const http = require('http')
 
 // Read secrets from the file
 const secretsPath = path.join(__dirname, 'secrets.json');
 const secrets = JSON.parse(fs.readFileSync(secretsPath, 'utf-8'));
 
 const app = express();
-const port = 443;
+const port = 3000;
 
-let ninjaDevices
+let ninjaDevices;
+let snipeitDevices;
 
+app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.send(`<button onclick=${refreshFunction()} type="button">Refresh!</button>`);
+});
 
 app.get('/refresh', (req, res) => {
   res.send('Refresh triggered!')
+  console.log('Refreshing...')
+  refreshFunction();
 })
 
-cron.schedule('0 * * * *', () => {
+cron.schedule('30 * * * *', () => {
   
   refreshFunction();
   console.log('Scheduled refresh executed!');
@@ -57,8 +65,8 @@ function refreshFunction() {
 
 
 function getDevices(values) {
-  const url1 = 'https://app.ninjarmm.com/v2/devices';
-  const options1 = {
+  const url = 'https://app.ninjarmm.com/v2/devices';
+  const options = {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -66,10 +74,19 @@ function getDevices(values) {
     },
   };
 
-  fetch(url1, options1)
+  const url1 = 'http://javis-si.javis.local/api/v1/hardware';
+  const options1 = {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${secrets.snipeitsecret}`
+    }
+  }
+
+  fetch(url, options)
     .then((response) => {
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
+        throw new Error(`HTTP error! Status: ${response.status} + " " + ${response.statusText}`);
       }
       return response.json();
     })
@@ -78,4 +95,20 @@ function getDevices(values) {
       console.log(ninjaDevices);
     })
     .catch((error) => console.error('Error:', error));
+
+  fetch(url1, options1)
+  .then((response) => {
+    if (!response.ok) {
+      throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+    }
+    return response.json();
+  })
+  .then((data) => {
+    snipeitDevices = data;
+    console.log(snipeitDevices);
+  })
 }
+
+app.listen(port, () => {
+  console.log('Server Running on port ' + port + '...');
+})
