@@ -42,7 +42,7 @@ app.get('/trigger-refresh', (req, res) => {
   res.send('Refresh triggered!');
 });
 
-cron.schedule('0 * * * *', () => {
+cron.schedule('*/5 * * * *', () => {
   
   refreshFunction();
   console.log('Scheduled refresh executed!');
@@ -109,6 +109,8 @@ function getDevices(values) {
     .then((data) => {
       ninjaDevices = data;
       console.log(ninjaDevices);
+      // addToSnipeIT(ninjaDevices);
+
     })
     .catch((error) => console.error('Error:', error));
 
@@ -122,6 +124,32 @@ function getDevices(values) {
   .then((data) => {
     snipeitDevices = data;
     console.log(snipeitDevices);
+
+  })
+}
+
+function addToSnipeIT() {
+  const url = 'http://javis-si.javis.local/api/v1/hardware';
+  const options = {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${secrets.snipeitsecret}`,
+      'content-type': 'application/json'
+    }
+  }
+
+  fetch(url, options)
+  .then((response) => {
+    if (!response.ok) {
+      throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+    }
+    return response.json();
+  })
+  .then((data) => {
+    snipeitDevices = data;
+    console.log(snipeitDevices);
+
   })
 }
 
