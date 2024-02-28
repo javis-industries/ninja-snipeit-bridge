@@ -112,3 +112,25 @@ function getDevices(values) {
 app.listen(port, () => {
   console.log('Server Running on port ' + port + '...');
 })
+
+function jsonParseNinjaID(ninjaDevices) {
+  try {
+    const parsedData = JSON.parse(ninjaDevices);
+    const ninjaID = [];
+
+    if (parsedData && parsedData.items && Array.isArray(parsedData.items)) {
+        parsedData.items.forEach(item => {
+            if (typeof item.ID === 'number') {
+                ninjaID.push(item.ID);
+            } else if (typeof item.ID === 'string' && /^\d+$/.test(item.ID)) {
+                ninjaID.push(parseInt(item.ID, 10));
+            }
+        });
+    }
+
+    return ninjaID;
+  } catch (error) {
+      console.error('Error parsing JSON - ninjaDevices:', error);
+      return [];
+  }
+}
