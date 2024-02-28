@@ -1,9 +1,14 @@
 const fs = require('fs');
 const path = require('path');
+const express = require('express');
+const cron = require('node-cron');
 
 // Read secrets from the file
 const secretsPath = path.join(__dirname, 'secrets.json');
 const secrets = JSON.parse(fs.readFileSync(secretsPath, 'utf-8'));
+
+const app = express();
+const port = 443;
 
 const url = 'https://app.ninjarmm.com/ws/oauth/token';
 const options = {
@@ -17,7 +22,19 @@ const options = {
   }),
 };
 
-fetch(url, options)
+app.get('/refresh', (req, res) => {
+  res.send('Refresh triggered!')
+})
+
+cron.schedule('0 * * * *', () => {
+  
+  refreshFunction();
+  console.log('Scheduled refresh executed!');
+});
+
+
+function refreshFunction() {
+  fetch(url, options)
   .then((response) => {
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
@@ -27,8 +44,12 @@ fetch(url, options)
   .then((data) => {
     console.log(data);
     getDevices(data);
+
+    console.log("Refreshing...")
   })
   .catch((error) => console.error('Error:', error));
+}
+
 
 function getDevices(values) {
   const url1 = 'https://app.ninjarmm.com/v2/devices';
