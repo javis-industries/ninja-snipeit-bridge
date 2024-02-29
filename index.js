@@ -81,7 +81,7 @@ function refreshFunction() {
 
 
 function getDevices(values) {
-  const url = 'https://app.ninjarmm.com/v2/devices';
+  const url = 'https://app.ninjarmm.com/v2/devices-detailed';
   const options = {
     method: 'GET',
     headers: {
