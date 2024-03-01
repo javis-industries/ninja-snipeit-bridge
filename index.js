@@ -81,7 +81,7 @@ function refreshFunction() {
 
 
 function getDevices(values) {
-  const url = 'https://app.ninjarmm.com/v2/devices';
+  const url = 'https://app.ninjarmm.com/v2/devices-detailed';
   const options = {
     method: 'GET',
     headers: {
@@ -108,7 +108,18 @@ function getDevices(values) {
     })
     .then((data) => {
       ninjaDevices = data;
-      console.log(ninjaDevices);
+      // console.log(ninjaDevices);
+      ninjaDevices.forEach(device => {
+
+        console.log(device.system.name);
+
+        if(device.system.manufacturer === "") {
+          console.log("Unknown")
+        } else {
+          console.log(device.system.manufacturer);
+        }
+        
+      })
       // addToSnipeIT(ninjaDevices);
 
     })
@@ -123,7 +134,7 @@ function getDevices(values) {
   })
   .then((data) => {
     snipeitDevices = data;
-    console.log(snipeitDevices);
+    // console.log(snipeitDevices);
 
   })
 }
@@ -148,7 +159,7 @@ function addToSnipeIT() {
   })
   .then((data) => {
     snipeitDevices = data;
-    console.log(snipeitDevices);
+    // console.log(snipeitDevices);
 
   })
 }
