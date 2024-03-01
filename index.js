@@ -17,6 +17,7 @@ const conn = new sqlite3.Database('./SQL/NinjaSnipeITBridge.db');
 
 let ninjaDevices;
 let manufacturers  = [];
+let models = [];
 let snipeitDevices;
 
 app.use(express.json());
@@ -87,7 +88,8 @@ function refreshFunction() {
   })
   .then((data) => {
     // console.log(data);
-    getManufacturers(data);
+    getModels(data);
+    // getManufacturers(data);
 
     console.log("Refreshing...")
   })
@@ -128,7 +130,6 @@ function refreshManufacturers() {
     })
   })
 }
-
 
 // Function that gets all manufacturers from Ninja and write them to snipeIT
 // *** Might break out into two functions ***
@@ -179,10 +180,7 @@ function getManufacturers(values) {
     })
     .catch((error) => console.error('Error:', error));
 
-  
-
   const url1 = `${snipeItURL}/api/v1/manufacturers`;
-
   
   manufacturers.forEach(manufacturer => {
     fetch(url1, {
@@ -203,9 +201,77 @@ function getManufacturers(values) {
       refreshManufacturers();
       return response.json();
       })
-  })  
+  })   
+}
 
+function getModels(values) {
+  const url = 'https://app.ninjarmm.com/v2/devices-detailed';
+  const options = {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `${values.token_type} ${values.access_token}`,
+    },
+  };
+
+  fetch(url, options)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status} + " " + ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then((data) => {
+      ninjaDevices = data;
+      // console.log(ninjaDevices);
+      ninjaDevices.forEach(device => {
+
+        // console.log(device.system.name);
+
+        if(device.system === undefined || device.system === null) {
+          // console.log("Unknown")
+        } else {
+          // console.log(device.system.manufacturer);
+          if(!(models.includes(device.system.model)) && device.system.model !== undefined) {
+            if((device.system.model === '')) {
+              if(!models.includes('UNKNOWN')) {
+                models.push('UNKNOWN')
+              }
+            } else {
+              models.push(device.system.model)
+            }
+          }
+        }
+        
+      })
+      console.log(models);
+      // addToSnipeIT(ninjaDevices);
+
+    })
+    .catch((error) => console.error('Error:', error));
+
+  // const url1 = `${snipeItURL}/api/v1/manufacturers`;
   
+  // manufacturers.forEach(manufacturer => {
+  //   fetch(url1, {
+  //     method: 'POST',
+  //     headers: {
+  //       Accept: 'application/json',
+  //       Authorization: `Bearer ${secrets.snipeitsecret}`,
+  //       'Content-Type': 'application/json'
+  //     },
+  //     body: JSON.stringify({
+  //       name: manufacturer
+  //     })
+  //   })
+  //   .then((response) => {
+  //     if (!response.ok) {
+  //       throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+  //     }
+  //     refreshManufacturers();
+  //     return response.json();
+  //     })
+  // })   
 }
 
 

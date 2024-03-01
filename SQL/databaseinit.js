@@ -28,18 +28,19 @@ db.run(`
 `);
 
 db.run(`
-CREATE TABLE IF NOT EXISTS models (
-    modelId INTEGER PRIMARY KEY UNIQUE,
-    manufacturerId INTEGER NOT NULL UNIQUE,
-    category INTEGER NOT NULL UNIQUE,
-    modelNumber INTEGER NOT NULL UNIQUE
+CREATE TABLE IF NOT EXISTS manufacturers (
+    manufacturerId INTEGER PRIMARY KEY UNIQUE,
+    name TEXT NOT NULL UNIQUE
     )
 `);
 
 db.run(`
-CREATE TABLE IF NOT EXISTS manufacturers (
-    manufacturerId INTEGER PRIMARY KEY UNIQUE,
-    name TEXT NOT NULL UNIQUE
+CREATE TABLE IF NOT EXISTS models (
+    modelId INTEGER PRIMARY KEY UNIQUE,
+    category INTEGER NOT NULL UNIQUE,
+    modelNumber INTEGER NOT NULL UNIQUE,
+    manufacturerId INTEGER UNIQUE NOT NULL,
+    FOREIGN KEY (manufacturerId) references manufacturers(manufacturerId)
     )
 `);
 
