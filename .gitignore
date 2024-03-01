@@ -45,9 +45,25 @@ build/Release
 # Dependency directories
 node_modules/
 jspm_packages/
+info/
+
 
 # Secrets Files
 secrets.json
+
+# Database
+NinjaSnipeITBridge.db
+SQL/NinjaSnipeITBridge.db
+
+# Specific Files for testing
+ninjaDevices.json
+snipeitDevices.json
+ninjaDevices-Detailed.json
+ninjaDevice3.json
+
+# 
+models.txt
+manufacturers.txt
 
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
