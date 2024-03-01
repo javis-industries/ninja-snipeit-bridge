@@ -21,6 +21,8 @@ let snipeitDevices;
 
 app.use(express.json());
 
+// Main page load for content with refresh button
+
 app.get('/', (req, res) => {
   res.send(`<div>
               <h1>Click to Refresh Devices</h1>
@@ -36,16 +38,22 @@ app.get('/', (req, res) => {
             <div>`);
 });
 
+// API Endpoint for refreshing manually, this may not be used in the future.
+
 app.get('/refresh', (req, res) => {
   res.send('Refresh triggered!')
   console.log('Refreshing...')
   refreshFunction();
 })
 
+// Page for manually refreshing from button
+
 app.get('/trigger-refresh', (req, res) => {
   refreshFunction();
   res.send('Refresh triggered!');
 });
+
+// Cron schedule for automatically running every 5 minutes
 
 cron.schedule('*/5 * * * *', () => {
   
@@ -53,6 +61,8 @@ cron.schedule('*/5 * * * *', () => {
   console.log('Scheduled refresh executed!');
 });
 
+
+// Main refresh function that kicks off all other procedures
 
 function refreshFunction() {
 
@@ -83,6 +93,45 @@ function refreshFunction() {
   })
   .catch((error) => console.error('Error:', error));
 }
+
+// Function that gets all manufacturers from SnipeIT and writes them to database
+
+function refreshManufacturers() {
+
+  const url = `${snipeItURL}/api/v1/manufacturers`;
+  const options = {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${secrets.snipeitsecret}`
+    }
+  }
+
+  fetch(url, options)
+  .then((response) => {
+    if (!response.ok) {
+      throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+    }
+    return response.json();
+    })
+  .then((data) => {
+    data.rows.forEach(manufacturer => {
+      console.log(manufacturer.name + " " + manufacturer.id)
+      conn.run(
+        'INSERT INTO manufacturers (manufacturerId, name) VALUES (?, ?)', [manufacturer.id, manufacturer.name], function (err) {
+          if (err) {
+            console.error(err.message);
+          }
+          console.log(`Manufacturer ${manufacturer.name} with id (${manufacturer.id}) added to the database.`);
+        }
+      );
+    })
+  })
+}
+
+
+// Function that gets all manufacturers from Ninja and write them to snipeIT
+// *** Might break out into two functions ***
 
 function getManufacturers(values) {
   const url = 'https://app.ninjarmm.com/v2/devices-detailed';
@@ -159,6 +208,9 @@ function getManufacturers(values) {
   
 }
 
+
+// Returns all detailed information about all ninja devices
+
 function getDevices(values) {
   const url = 'https://app.ninjarmm.com/v2/devices-detailed';
   const options = {
@@ -228,6 +280,8 @@ function getDevices(values) {
   })
 }
 
+// Adds a device to SnipeIT
+
 function addToSnipeIT() {
   const url = `${snipeItURL}/api/v1/hardware`;
   const options = {
@@ -253,47 +307,6 @@ function addToSnipeIT() {
   })
 }
 
-function refreshManufacturers() {
-
-  const url = `${snipeItURL}/api/v1/manufacturers`;
-  const options = {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${secrets.snipeitsecret}`
-    }
-  }
-
-  fetch(url, options)
-  .then((response) => {
-    if (!response.ok) {
-      throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
-    }
-    return response.json();
-    })
-  .then((data) => {
-    data.rows.forEach(manufacturer => {
-      console.log(manufacturer.name + " " + manufacturer.id)
-      conn.run(
-        'INSERT INTO manufacturers (manufacturerId, name) VALUES (?, ?)', [manufacturer.id, manufacturer.name], function (err) {
-          if (err) {
-            console.error(err.message);
-          }
-          console.log(`Manufacturer ${manufacturer.name} with id (${manufacturer.id}) added to the database.`);
-        }
-      );
-    })
-
-    
-    // console.log(snipeitDevices);
-
-  })
-}
-
-app.listen(port, () => {
-  console.log('Server Running on port ' + port + '...');
-})
-
 function jsonParseNinjaID(ninjaDevices) {
   try {
     const parsedData = JSON.parse(ninjaDevices);
@@ -315,3 +328,7 @@ function jsonParseNinjaID(ninjaDevices) {
       return [];
   }
 }
+
+app.listen(port, () => {
+  console.log('Server Running on port ' + port + '...');
+})
