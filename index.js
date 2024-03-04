@@ -15,7 +15,7 @@ const port = 3000;
 
 const conn = new sqlite3.Database('./SQL/NinjaSnipeITBridge.db');
 
-let ninjaDevices;
+// let ninjaDevices;
 let manufacturers  = [];
 let models = [];
 let snipeitDevices;
@@ -44,13 +44,13 @@ app.get('/', (req, res) => {
 app.get('/refresh', (req, res) => {
   res.send('Refresh triggered!')
   console.log('Refreshing...')
-  refreshFunction();
+  update();
 })
 
 // Page for manually refreshing from button
 
 app.get('/trigger-refresh', (req, res) => {
-  refreshFunction();
+  update();
   res.send('Refresh triggered!');
 });
 
@@ -58,14 +58,13 @@ app.get('/trigger-refresh', (req, res) => {
 
 cron.schedule('*/5 * * * *', () => {
   
-  refreshFunction();
+  update();
   console.log('Scheduled refresh executed!');
 });
 
 
-// Main refresh function that kicks off all other procedures
-
-function refreshFunction() {
+// Function to kick off all updates
+function update() { 
 
   const url = 'https://app.ninjarmm.com/ws/oauth/token';
   const options = {
@@ -88,13 +87,123 @@ function refreshFunction() {
   })
   .then((data) => {
     // console.log(data);
-    getModels(data);
     // getManufacturers(data);
+    loadNinjaDevices(data);
 
     console.log("Refreshing...")
   })
   .catch((error) => console.error('Error:', error));
 }
+
+
+
+
+// Main refresh function that kicks off all other procedures
+
+function loadNinjaDevices(values) {
+  const url = 'https://app.ninjarmm.com/v2/devices-detailed';
+  const options = {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `${values.token_type} ${values.access_token}`,
+    },
+  };
+
+  fetch(url, options)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status} + " " + ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then((data) => {
+      // ninjaDevices = data;
+      
+      // console.log(manufacturers);
+      getManufacturers(data);
+      // addToSnipeIT(ninjaDevices);
+
+    })
+    .catch((error) => console.error('Error:', error));
+  
+}
+
+// Function that gets all manufacturers from Ninja and write them to snipeIT
+// *** Might break out into two functions ***
+
+function getManufacturers(data) {
+  data.forEach(device => {
+
+    // console.log(device.system.name);
+
+    if(device.system === undefined || device.system === null) {
+      // console.log("Unknown")
+    } else {
+      // console.log(device.system.manufacturer);
+      if(!(manufacturers.includes(device.system.manufacturer)) && device.system.manufacturer !== undefined) {
+        if((device.system.manufacturer === 'To Be Filled By O.E.M.') || (device.system.manufacturer === '')) {
+          if(!manufacturers.includes('UNKNOWN')) {
+            manufacturers.push('UNKNOWN')
+          }
+        } else {
+          manufacturers.push(device.system.manufacturer)
+        }
+      }
+    }
+        
+  })
+  // Write manufacturers to snipeit
+  updateManufacturers()
+}
+
+// updates manufacturers in SnipeIT
+function updateManufacturers() {
+
+  const url1 = `${snipeItURL}/api/v1/manufacturers`;
+  
+  manufacturers.forEach(manufacturer => {
+    if(!checkManufacturerExists(manufacturer)) {
+      fetch(url1, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${secrets.snipeitsecret}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: manufacturer
+        })
+      })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+        }
+        return response.json();
+      })
+    } else {
+      console.log("Manufacturer Exists!!!")
+    }
+  })   
+
+  refreshManufacturers();
+}
+
+function checkManufacturerExists(manufacturer) {
+  return new Promise((resolve, reject) => {
+    const query = `SELECT COUNT(*) AS count FROM manufacturers WHERE name = ?`;
+
+    conn.get(query, [manufacturer], (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve(row.count > 0);
+    });
+  });
+}
+
 
 // Function that gets all manufacturers from SnipeIT and writes them to database
 
@@ -118,91 +227,25 @@ function refreshManufacturers() {
     })
   .then((data) => {
     data.rows.forEach(manufacturer => {
-      console.log(manufacturer.name + " " + manufacturer.id)
-      conn.run(
-        'INSERT INTO manufacturers (manufacturerId, name) VALUES (?, ?)', [manufacturer.id, manufacturer.name], function (err) {
-          if (err) {
-            console.error(err.message);
+
+      if(!checkManufacturerExists(manufacturer)) {
+        console.log(manufacturer.name + " " + manufacturer.id)
+        conn.run(
+          'INSERT INTO manufacturers (manufacturerId, name) VALUES (?, ?)', [manufacturer.id, manufacturer.name], function (err) {
+            if (err) {
+              console.error(err.message);
+            }
+            console.log(`Manufacturer ${manufacturer.name} with id (${manufacturer.id}) added to the database.`);
           }
-          console.log(`Manufacturer ${manufacturer.name} with id (${manufacturer.id}) added to the database.`);
-        }
-      );
+        );
+      } else {
+        console.log("Already added to database");
+      }
     })
   })
 }
 
-// Function that gets all manufacturers from Ninja and write them to snipeIT
-// *** Might break out into two functions ***
-
-function getManufacturers(values) {
-  const url = 'https://app.ninjarmm.com/v2/devices-detailed';
-  const options = {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-      Authorization: `${values.token_type} ${values.access_token}`,
-    },
-  };
-
-  fetch(url, options)
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status} + " " + ${response.statusText}`);
-      }
-      return response.json();
-    })
-    .then((data) => {
-      ninjaDevices = data;
-      // console.log(ninjaDevices);
-      ninjaDevices.forEach(device => {
-
-        // console.log(device.system.name);
-
-        if(device.system === undefined || device.system === null) {
-          // console.log("Unknown")
-        } else {
-          // console.log(device.system.manufacturer);
-          if(!(manufacturers.includes(device.system.manufacturer)) && device.system.manufacturer !== undefined) {
-            if((device.system.manufacturer === 'To Be Filled By O.E.M.') || (device.system.manufacturer === '')) {
-              if(!manufacturers.includes('UNKNOWN')) {
-                manufacturers.push('UNKNOWN')
-              }
-            } else {
-              manufacturers.push(device.system.manufacturer)
-            }
-          }
-        }
-        
-      })
-      console.log(manufacturers);
-      // addToSnipeIT(ninjaDevices);
-
-    })
-    .catch((error) => console.error('Error:', error));
-
-  const url1 = `${snipeItURL}/api/v1/manufacturers`;
-  
-  manufacturers.forEach(manufacturer => {
-    fetch(url1, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${secrets.snipeitsecret}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name: manufacturer
-      })
-    })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
-      }
-      refreshManufacturers();
-      return response.json();
-      })
-  })   
-}
+// Function that gets all models from Ninja
 
 function getModels(values) {
   const url = 'https://app.ninjarmm.com/v2/devices-detailed';
@@ -272,6 +315,10 @@ function getModels(values) {
   //     return response.json();
   //     })
   // })   
+}
+
+function updateModels() {
+
 }
 
 
