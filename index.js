@@ -88,15 +88,16 @@ function update() {
   })
   .then((data) => {
     // console.log(data);
-    // getManufacturers(data);
     loadOrgs(data);
-    // loadNinjaDevices(data);
+    // getManufacturers(data);
+    loadNinjaDevices(data);
 
     console.log("Refreshing...")
   })
   .catch((error) => console.error('Error:', error));
 }
 
+// Retrieves orgs from ninja
 function loadOrgs(values) {
   const url = 'https://app.ninjarmm.com/v2/organizations';
   const options = {
@@ -122,12 +123,12 @@ function loadOrgs(values) {
     .catch((error) => console.error('Error:', error));
 }
 
+// Add missing companies to snipeit and add to database.
 function updateCompanies(orgs) {
 
   const url = `${snipeItURL}/api/v1/companies`;
 
   orgs.forEach((org) => {
-      console.log(org.name);
       // if(!checkOrgExists(org.name)) {
       setTimeout(() => {
           fetch(url, {
@@ -161,13 +162,11 @@ function updateCompanies(orgs) {
               }
           })
           .catch((error) => console.error('Error:', error));
-      });
+      }, 500);
   });
 }
 
-
-
-
+// Function returns promise, check if org exists
 function checkOrgExists(org) {
   return new Promise((resolve, reject) => {
     const query = `SELECT COUNT(*) AS count FROM organizations WHERE name = ?`;
@@ -183,10 +182,7 @@ function checkOrgExists(org) {
   });
 }
 
-
-
 // Grabbing all ninja devices and 
-
 function loadNinjaDevices(values) {
   const url = 'https://app.ninjarmm.com/v2/devices-detailed';
   const options = {
@@ -207,8 +203,9 @@ function loadNinjaDevices(values) {
     .then((data) => {
       // ninjaDevices = data;
       
-      // console.log(manufacturers);
+      // console.log(data);
       getManufacturers(data);
+      getModels(data);
       // addToSnipeIT(ninjaDevices);
 
     })
@@ -218,7 +215,6 @@ function loadNinjaDevices(values) {
 
 // Function that gets all manufacturers from Ninja and write them to snipeIT
 // *** Might break out into two functions ***
-
 function getManufacturers(data) {
   data.forEach(device => {
 
@@ -275,8 +271,7 @@ function updateManufacturers() {
 }
 
 // Function to check if manufacturer exists in local cached database
-// Returns true if found in Manufacturers table
-
+// Returns promise
 function checkManufacturerExists(manufacturer) {
   return new Promise((resolve, reject) => {
     const query = `SELECT COUNT(*) AS count FROM manufacturers WHERE name = ?`;
@@ -293,7 +288,6 @@ function checkManufacturerExists(manufacturer) {
 }
 
 // Function that gets all manufacturers from SnipeIT and writes them to database
-
 function refreshManufacturers() {
 
   const url = `${snipeItURL}/api/v1/manufacturers`;
@@ -330,52 +324,114 @@ function refreshManufacturers() {
 }
 
 // Function that gets all models from Ninja
+function getModels(data) {
 
-function getModels(values) {
-  const url = 'https://app.ninjarmm.com/v2/devices-detailed';
-  const options = {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-      Authorization: `${values.token_type} ${values.access_token}`,
-    },
-  };
+  data.forEach(device => {
 
-  fetch(url, options)
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status} + " " + ${response.statusText}`);
-      }
-      return response.json();
-    })
-    .then((data) => {
-      ninjaDevices = data;
-      // console.log(ninjaDevices);
-      ninjaDevices.forEach(device => {
+    // console.log(device.system.name);
 
-        // console.log(device.system.name);
-
-        if(device.system === undefined || device.system === null) {
-          // console.log("Unknown")
-        } else {
-          // console.log(device.system.manufacturer);
-          if(!(models.includes(device.system.model)) && device.system.model !== undefined) {
-            if((device.system.model === '')) {
-              if(!models.includes('UNKNOWN')) {
-                models.push('UNKNOWN')
-              }
-            } else {
-              models.push(device.system.model)
-            }
+    if(device.system === undefined || device.system === null) {
+      // console.log("Unknown")
+    } else {
+      // console.log(device.system.manufacturer);
+      if(!(models.includes(device.system.model)) && device.system.model !== undefined) {
+        if((device.system.model === '')) {
+          if(!models.includes('UNKNOWN')) {
+            models.push('UNKNOWN')
           }
+        } else {
+          models.push(device.system.model)
         }
-        
-      })
-      console.log(models);
-      // addToSnipeIT(ninjaDevices);
+      }
+    }
+  })
+  updateModels(data);
+  console.log(models);
+}
 
+function updateModels(data) {
+
+  let model = {
+    name: "",
+    model_number: "",
+    manufacturer_id: 0,
+    category_id: 0
+  }
+
+  data.forEach(device => {
+
+    console.log(device.systemName);
+    let manufacturerName;
+
+    if(device.system === undefined || device.system.manufacturer === undefined) {
+      manufacturerName = 'UNKNOWN'
+    } else {
+      manufacturerName = device.system.manufacturer;
+    }
+
+    getManufacturerID(manufacturerName)
+    .then((manufacturerDetails) => {
+      if(manufacturerDetails === undefined || manufacturerDetails.manufacturerId === undefined) {
+        model.manufacturer_id = 43;
+        console.log(model.manufacturer_id)
+      } else {
+        console.log(manufacturerDetails.manufacturerId)
+        model.manufacturer_id = manufacturerDetails.manufacturerId
+      }
+
+      // Continue with your logic here
     })
-    .catch((error) => console.error('Error:', error));
+    .catch((error) => {
+      console.error(error.message);
+      // Handle the error
+    });
+    
+    if(device.system === undefined || device.system.model === undefined) {
+      model.name = 'UnKNOWN'
+      model.model_number = "UKNOWN"
+    } else {
+      model.name = device.system.model
+      model.model_number = device.system.model;
+
+      console.log(device.systemName + " " + device.system.model)
+    }
+
+
+    if(device.system === undefined) {
+      model.category_id = 20
+    } else {
+      if(device.system.chassisType === "DESKTOP") {
+        model.category_id = 11
+      } else if(device.system.chassisType === "LAPTOP") {
+        model.category_id = 10
+      } else if(device.system.chassisType === "SERVER") {
+        model.category_id = 21
+      } else {
+        model.category_id = 20
+      }
+    }
+  }) 
+
+  
+}
+
+// Function returns promise, check if manufacturer exists
+function getManufacturerID(manufacturer) {
+  return new Promise((resolve, reject) => {
+    const query = 'SELECT * FROM manufacturers WHERE name = ?';
+
+    conn.get(query, [manufacturer], (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve(row);
+    });
+  });
+}
+
+
 
   // const url1 = `${snipeItURL}/api/v1/manufacturers`;
   
@@ -399,15 +455,9 @@ function getModels(values) {
   //     return response.json();
   //     })
   // })   
-}
-
-function updateModels() {
-
-}
 
 
 // Returns all detailed information about all ninja devices
-
 function getDevices(values) {
   const url = 'https://app.ninjarmm.com/v2/devices-detailed';
   const options = {
@@ -478,7 +528,6 @@ function getDevices(values) {
 }
 
 // Adds a device to SnipeIT
-
 function addToSnipeIT() {
   const url = `${snipeItURL}/api/v1/hardware`;
   const options = {
