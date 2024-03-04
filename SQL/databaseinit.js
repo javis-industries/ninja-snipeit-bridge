@@ -19,11 +19,9 @@ const db = new sqlite3.Database(dbFile, (err) => {
 });
 
 db.run(`
-  CREATE TABLE IF NOT EXISTS devices (
-    assetTag INTEGER PRIMARY KEY UNIQUE,
-    ninjaId INTEGER NOT NULL UNIQUE,
-    snipeitId INTEGER NOT NULL UNIQUE,
-    serialNumber TEXT NOT NULL UNIQUE
+CREATE TABLE IF NOT EXISTS organizations (
+    orgid INTEGER PRIMARY KEY UNIQUE,
+    name TEXT NOT NULL UNIQUE
     )
 `);
 
@@ -41,6 +39,15 @@ CREATE TABLE IF NOT EXISTS models (
     modelNumber INTEGER NOT NULL UNIQUE,
     manufacturerId INTEGER UNIQUE NOT NULL,
     FOREIGN KEY (manufacturerId) references manufacturers(manufacturerId)
+    )
+`);
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS devices (
+    assetTag INTEGER PRIMARY KEY UNIQUE,
+    ninjaId INTEGER NOT NULL UNIQUE,
+    snipeitId INTEGER NOT NULL UNIQUE,
+    serialNumber TEXT NOT NULL UNIQUE
     )
 `);
 

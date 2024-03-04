@@ -18,6 +18,7 @@ const conn = new sqlite3.Database('./SQL/NinjaSnipeITBridge.db');
 // let ninjaDevices;
 let manufacturers  = [];
 let models = [];
+let organizations = [];
 let snipeitDevices;
 
 app.use(express.json());
@@ -88,17 +89,103 @@ function update() {
   .then((data) => {
     // console.log(data);
     // getManufacturers(data);
-    loadNinjaDevices(data);
+    loadOrgs(data);
+    // loadNinjaDevices(data);
 
     console.log("Refreshing...")
   })
   .catch((error) => console.error('Error:', error));
 }
 
+function loadOrgs(values) {
+  const url = 'https://app.ninjarmm.com/v2/organizations';
+  const options = {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `${values.token_type} ${values.access_token}`,
+    },
+  };
+
+  fetch(url, options)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status} + " " + ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then((data) => {
+
+      updateCompanies(data);
+
+    })
+    .catch((error) => console.error('Error:', error));
+}
+
+function updateCompanies(orgs) {
+
+  const url = `${snipeItURL}/api/v1/companies`;
+
+  orgs.forEach((org) => {
+      console.log(org.name);
+      // if(!checkOrgExists(org.name)) {
+      setTimeout(() => {
+          fetch(url, {
+              method: 'POST',
+              headers: {
+                  Accept: 'application/json',
+                  Authorization: `Bearer ${secrets.snipeitsecret}`,
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                  name: org.name
+              }),
+              timeout: 10000
+          })
+          .then((response) => {
+              if (!response.ok) {
+                  throw new Error(`HTTP error! Status: ${response.status} + " " + ${response.statusText}`);
+              }
+
+              return response.json();
+          })
+          .then((data) => {
+              if (!checkOrgExists(org.name)) {
+                conn.run(
+                    'INSERT INTO organizations (orgid, name) VALUES (?, ?)', [org.id, org.name], function (err) {
+                        if (err) {
+                            console.error(err.message);
+                        }
+                    }
+                );
+              }
+          })
+          .catch((error) => console.error('Error:', error));
+      });
+  });
+}
 
 
 
-// Main refresh function that kicks off all other procedures
+
+function checkOrgExists(org) {
+  return new Promise((resolve, reject) => {
+    const query = `SELECT COUNT(*) AS count FROM organizations WHERE name = ?`;
+
+    conn.get(query, [org], (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve(row.count > 0);
+    });
+  });
+}
+
+
+
+// Grabbing all ninja devices and 
 
 function loadNinjaDevices(values) {
   const url = 'https://app.ninjarmm.com/v2/devices-detailed';
@@ -181,13 +268,14 @@ function updateManufacturers() {
         }
         return response.json();
       })
-    } else {
-      console.log("Manufacturer Exists!!!")
     }
   })   
 
   refreshManufacturers();
 }
+
+// Function to check if manufacturer exists in local cached database
+// Returns true if found in Manufacturers table
 
 function checkManufacturerExists(manufacturer) {
   return new Promise((resolve, reject) => {
@@ -203,7 +291,6 @@ function checkManufacturerExists(manufacturer) {
     });
   });
 }
-
 
 // Function that gets all manufacturers from SnipeIT and writes them to database
 
@@ -235,11 +322,8 @@ function refreshManufacturers() {
             if (err) {
               console.error(err.message);
             }
-            console.log(`Manufacturer ${manufacturer.name} with id (${manufacturer.id}) added to the database.`);
           }
         );
-      } else {
-        console.log("Already added to database");
       }
     })
   })
