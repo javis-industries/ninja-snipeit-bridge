@@ -10,13 +10,15 @@ const secretsPath = path.join(__dirname, 'secrets.json');
 const secrets = JSON.parse(fs.readFileSync(secretsPath, 'utf-8'));
 const snipeItURL = secrets.snipeItURL;
 
+
+// Specify Express Server Settings
 const app = express();
 const port = 3000;
 
 const conn = new sqlite3.Database('./SQL/NinjaSnipeITBridge.db');
 
 // let ninjaDevices;
-let manufacturers  = [];
+let manufacturers = [];
 let models = [];
 let organizations = [];
 let snipeitDevices;
@@ -58,14 +60,14 @@ app.get('/trigger-refresh', (req, res) => {
 // Cron schedule for automatically running every 5 minutes
 
 cron.schedule('*/5 * * * *', () => {
-  
+
   update();
   console.log('Scheduled refresh executed!');
 });
 
 
 // Function to kick off all updates
-function update() { 
+function update() {
 
   const url = 'https://app.ninjarmm.com/ws/oauth/token';
   const options = {
@@ -80,21 +82,21 @@ function update() {
   };
 
   fetch(url, options)
-  .then((response) => {
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return response.json();
-  })
-  .then((data) => {
-    // console.log(data);
-    loadOrgs(data);
-    // getManufacturers(data);
-    loadNinjaDevices(data);
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then((data) => {
+      // console.log(data);
+      loadOrgs(data);
+      // getManufacturers(data);
+      loadNinjaDevices(data);
 
-    console.log("Refreshing...")
-  })
-  .catch((error) => console.error('Error:', error));
+      console.log("Refreshing...")
+    })
+    .catch((error) => console.error('Error:', error));
 }
 
 // Retrieves orgs from ninja
@@ -129,40 +131,40 @@ function updateCompanies(orgs) {
   const url = `${snipeItURL}/api/v1/companies`;
 
   orgs.forEach((org) => {
-      // if(!checkOrgExists(org.name)) {
-      setTimeout(() => {
-          fetch(url, {
-              method: 'POST',
-              headers: {
-                  Accept: 'application/json',
-                  Authorization: `Bearer ${secrets.snipeitsecret}`,
-                  'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                  name: org.name
-              }),
-              timeout: 10000
-          })
-          .then((response) => {
-              if (!response.ok) {
-                  throw new Error(`HTTP error! Status: ${response.status} + " " + ${response.statusText}`);
-              }
+    // if(!checkOrgExists(org.name)) {
+    setTimeout(() => {
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${secrets.snipeitsecret}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: org.name
+        }),
+        timeout: 10000
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status} + " " + ${response.statusText}`);
+          }
 
-              return response.json();
-          })
-          .then((data) => {
-              if (!checkOrgExists(org.name)) {
-                conn.run(
-                    'INSERT INTO organizations (orgid, name) VALUES (?, ?)', [org.id, org.name], function (err) {
-                        if (err) {
-                            console.error(err.message);
-                        }
-                    }
-                );
+          return response.json();
+        })
+        .then((data) => {
+          if (!checkOrgExists(org.name)) {
+            conn.run(
+              'INSERT INTO organizations (orgid, name) VALUES (?, ?)', [org.id, org.name], function (err) {
+                if (err) {
+                  console.error(err.message);
+                }
               }
-          })
-          .catch((error) => console.error('Error:', error));
-      }, 500);
+            );
+          }
+        })
+        .catch((error) => console.error('Error:', error));
+    }, 500);
   });
 }
 
@@ -202,7 +204,7 @@ function loadNinjaDevices(values) {
     })
     .then((data) => {
       // ninjaDevices = data;
-      
+
       // console.log(data);
       getManufacturers(data);
       getModels(data);
@@ -210,7 +212,7 @@ function loadNinjaDevices(values) {
 
     })
     .catch((error) => console.error('Error:', error));
-  
+
 }
 
 // Function that gets all manufacturers from Ninja and write them to snipeIT
@@ -220,13 +222,13 @@ function getManufacturers(data) {
 
     // console.log(device.system.name);
 
-    if(device.system === undefined || device.system === null) {
+    if (device.system === undefined || device.system === null) {
       // console.log("Unknown")
     } else {
       // console.log(device.system.manufacturer);
-      if(!(manufacturers.includes(device.system.manufacturer)) && device.system.manufacturer !== undefined) {
-        if((device.system.manufacturer === 'To Be Filled By O.E.M.') || (device.system.manufacturer === '')) {
-          if(!manufacturers.includes('UNKNOWN')) {
+      if (!(manufacturers.includes(device.system.manufacturer)) && device.system.manufacturer !== undefined) {
+        if ((device.system.manufacturer === 'To Be Filled By O.E.M.') || (device.system.manufacturer === '')) {
+          if (!manufacturers.includes('UNKNOWN')) {
             manufacturers.push('UNKNOWN')
           }
         } else {
@@ -234,7 +236,7 @@ function getManufacturers(data) {
         }
       }
     }
-        
+
   })
   // Write manufacturers to snipeit
   updateManufacturers()
@@ -244,9 +246,9 @@ function getManufacturers(data) {
 function updateManufacturers() {
 
   const url1 = `${snipeItURL}/api/v1/manufacturers`;
-  
+
   manufacturers.forEach(manufacturer => {
-    if(!checkManufacturerExists(manufacturer)) {
+    if (!checkManufacturerExists(manufacturer)) {
       fetch(url1, {
         method: 'POST',
         headers: {
@@ -258,14 +260,14 @@ function updateManufacturers() {
           name: manufacturer
         })
       })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
-        }
-        return response.json();
-      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+          }
+          return response.json();
+        })
     }
-  })   
+  })
 
   refreshManufacturers();
 }
@@ -300,56 +302,58 @@ function refreshManufacturers() {
   }
 
   fetch(url, options)
-  .then((response) => {
-    if (!response.ok) {
-      throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
-    }
-    return response.json();
-    })
-  .then((data) => {
-    data.rows.forEach(manufacturer => {
-
-      if(!checkManufacturerExists(manufacturer)) {
-        console.log(manufacturer.name + " " + manufacturer.id)
-        conn.run(
-          'INSERT INTO manufacturers (manufacturerId, name) VALUES (?, ?)', [manufacturer.id, manufacturer.name], function (err) {
-            if (err) {
-              console.error(err.message);
-            }
-          }
-        );
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
       }
+      return response.json();
     })
-  })
+    .then((data) => {
+      data.rows.forEach(manufacturer => {
+
+        if (!checkManufacturerExists(manufacturer)) {
+          console.log(manufacturer.name + " " + manufacturer.id)
+          conn.run(
+            'INSERT INTO manufacturers (manufacturerId, name) VALUES (?, ?)', [manufacturer.id, manufacturer.name], function (err) {
+              if (err) {
+                console.error(err.message);
+              }
+            }
+          );
+        }
+      })
+    })
 }
 
 // Function that gets all models from Ninja
 function getModels(data) {
 
-  data.forEach(device => {
+  // data.forEach(device => {
 
-    // console.log(device.system.name);
+  //   // console.log(device.system.name);
 
-    if(device.system === undefined || device.system === null) {
-      // console.log("Unknown")
-    } else {
-      // console.log(device.system.manufacturer);
-      if(!(models.includes(device.system.model)) && device.system.model !== undefined) {
-        if((device.system.model === '')) {
-          if(!models.includes('UNKNOWN')) {
-            models.push('UNKNOWN')
-          }
-        } else {
-          models.push(device.system.model)
-        }
-      }
-    }
-  })
+  //   if(device.system === undefined || device.system === null) {
+  //     // console.log("Unknown")
+  //   } else {
+  //     // console.log(device.system.manufacturer);
+  //     if(!(models.includes(device.system.model)) && device.system.model !== undefined) {
+  //       if((device.system.model === '')) {
+  //         if(!models.includes('UNKNOWN')) {
+  //           models.push('UNKNOWN')
+  //         }
+  //       } else {
+  //         models.push(device.system.model)
+  //       }
+  //     }
+  //   }
+  // })
   updateModels(data);
-  console.log(models);
+  // console.log(models);
 }
 
 function updateModels(data) {
+
+  let models = [];
 
   let model = {
     name: "",
@@ -360,59 +364,67 @@ function updateModels(data) {
 
   data.forEach(device => {
 
-    console.log(device.systemName);
-    let manufacturerName;
-
-    if(device.system === undefined || device.system.manufacturer === undefined) {
-      manufacturerName = 'UNKNOWN'
-    } else {
-      manufacturerName = device.system.manufacturer;
-    }
-
-    getManufacturerID(manufacturerName)
-    .then((manufacturerDetails) => {
-      if(manufacturerDetails === undefined || manufacturerDetails.manufacturerId === undefined) {
-        model.manufacturer_id = 43;
-        console.log(model.manufacturer_id)
-      } else {
-        console.log(manufacturerDetails.manufacturerId)
-        model.manufacturer_id = manufacturerDetails.manufacturerId
-      }
-
-      // Continue with your logic here
-    })
-    .catch((error) => {
-      console.error(error.message);
-      // Handle the error
-    });
-    
-    if(device.system === undefined || device.system.model === undefined) {
-      model.name = 'UnKNOWN'
-      model.model_number = "UKNOWN"
-    } else {
-      model.name = device.system.model
-      model.model_number = device.system.model;
-
-      console.log(device.systemName + " " + device.system.model)
-    }
-
-
-    if(device.system === undefined) {
-      model.category_id = 20
-    } else {
-      if(device.system.chassisType === "DESKTOP") {
-        model.category_id = 11
-      } else if(device.system.chassisType === "LAPTOP") {
-        model.category_id = 10
-      } else if(device.system.chassisType === "SERVER") {
-        model.category_id = 21
-      } else {
-        model.category_id = 20
-      }
-    }
-  }) 
-
+    if (!(device.system === undefined || device.system.model === undefined)) {
+      if (!(models.includes(device.system.model)) && device.system != undefined && device.system.model != undefined) {
   
+        let manufacturerName;
+  
+        if (device.system === undefined || device.system.manufacturer === undefined) {
+          manufacturerName = 'UNKNOWN'
+        } else {
+          manufacturerName = device.system.manufacturer;
+        }
+  
+        getManufacturerID(manufacturerName)
+        .then((manufacturerDetails) => {
+            if (manufacturerDetails === undefined || manufacturerDetails.manufacturerId === undefined) {
+              model.manufacturer_id = 43;
+            } else {
+              model.manufacturer_id = manufacturerDetails.manufacturerId
+              console.log(manufacturerDetails.manufacturerId);
+            }
+  
+            // Continue with your logic here
+          })
+          .catch((error) => {
+            console.error(error.message);
+            // Handle the error
+          });
+  
+        if (device.system === undefined || device.system.model === undefined) {
+          model.name = 'UnKNOWN'
+          model.model_number = "UKNOWN"
+        } else {
+          models.push(device.system.model);
+          model.name = device.system.model
+          model.model_number = device.system.model;
+        }
+  
+  
+        if (device.system === undefined) {
+          model.category_id = 20
+        } else {
+          if (device.system.chassisType === "DESKTOP") {
+            model.category_id = 11
+          } else if (device.system.chassisType === "LAPTOP") {
+            model.category_id = 10
+          } else if (device.system.chassisType === "SERVER") {
+            model.category_id = 21
+          } else {
+            model.category_id = 20
+          }
+        }
+
+        // console.log(`Model: ${model.name} by ${model.manufacturer_id} added to snipeit!`)
+
+        // setTimeout({
+        //   fetch()
+        // }, 500)
+      } else {
+        // console.log(`Model ${device.system.model} already added!`)
+      }
+    }
+  })
 }
 
 // Function returns promise, check if manufacturer exists
@@ -433,28 +445,28 @@ function getManufacturerID(manufacturer) {
 
 
 
-  // const url1 = `${snipeItURL}/api/v1/manufacturers`;
-  
-  // manufacturers.forEach(manufacturer => {
-  //   fetch(url1, {
-  //     method: 'POST',
-  //     headers: {
-  //       Accept: 'application/json',
-  //       Authorization: `Bearer ${secrets.snipeitsecret}`,
-  //       'Content-Type': 'application/json'
-  //     },
-  //     body: JSON.stringify({
-  //       name: manufacturer
-  //     })
-  //   })
-  //   .then((response) => {
-  //     if (!response.ok) {
-  //       throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
-  //     }
-  //     refreshManufacturers();
-  //     return response.json();
-  //     })
-  // })   
+// const url1 = `${snipeItURL}/api/v1/manufacturers`;
+
+// manufacturers.forEach(manufacturer => {
+//   fetch(url1, {
+//     method: 'POST',
+//     headers: {
+//       Accept: 'application/json',
+//       Authorization: `Bearer ${secrets.snipeitsecret}`,
+//       'Content-Type': 'application/json'
+//     },
+//     body: JSON.stringify({
+//       name: manufacturer
+//     })
+//   })
+//   .then((response) => {
+//     if (!response.ok) {
+//       throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+//     }
+//     refreshManufacturers();
+//     return response.json();
+//     })
+// })   
 
 
 // Returns all detailed information about all ninja devices
@@ -491,13 +503,13 @@ function getDevices(values) {
 
         // console.log(device.system.name);
 
-        if(device.system === undefined || device.system === null) {
+        if (device.system === undefined || device.system === null) {
           // console.log("Unknown")
         } else {
           // console.log(device.system.manufacturer);
-          if(!(manufacturers.includes(device.system.manufacturer)) && device.system.manufacturer !== undefined) {
-            if((device.system.manufacturer === 'To Be Filled By O.E.M.') || (device.system.manufacturer === '')) {
-              if(!manufacturers.includes('UNKNOWN')) {
+          if (!(manufacturers.includes(device.system.manufacturer)) && device.system.manufacturer !== undefined) {
+            if ((device.system.manufacturer === 'To Be Filled By O.E.M.') || (device.system.manufacturer === '')) {
+              if (!manufacturers.includes('UNKNOWN')) {
                 manufacturers.push('UNKNOWN')
               }
             } else {
@@ -505,7 +517,7 @@ function getDevices(values) {
             }
           }
         }
-        
+
       })
       console.log(manufacturers);
       // addToSnipeIT(ninjaDevices);
@@ -514,17 +526,17 @@ function getDevices(values) {
     .catch((error) => console.error('Error:', error));
 
   fetch(url1, options1)
-  .then((response) => {
-    if (!response.ok) {
-      throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
-    }
-    return response.json();
-  })
-  .then((data) => {
-    snipeitDevices = data;
-    // console.log(snipeitDevices);
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+      }
+      return response.json();
+    })
+    .then((data) => {
+      snipeitDevices = data;
+      // console.log(snipeitDevices);
 
-  })
+    })
 }
 
 // Adds a device to SnipeIT
@@ -540,17 +552,17 @@ function addToSnipeIT() {
   }
 
   fetch(url, options)
-  .then((response) => {
-    if (!response.ok) {
-      throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
-    }
-    return response.json();
-  })
-  .then((data) => {
-    snipeitDevices = data;
-    // console.log(snipeitDevices);
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+      }
+      return response.json();
+    })
+    .then((data) => {
+      snipeitDevices = data;
+      // console.log(snipeitDevices);
 
-  })
+    })
 }
 
 function jsonParseNinjaID(ninjaDevices) {
@@ -559,19 +571,19 @@ function jsonParseNinjaID(ninjaDevices) {
     const ninjaID = [];
 
     if (parsedData && parsedData.items && Array.isArray(parsedData.items)) {
-        parsedData.items.forEach(item => {
-            if (typeof item.ID === 'number') {
-                ninjaID.push(item.ID);
-            } else if (typeof item.ID === 'string' && /^\d+$/.test(item.ID)) {
-                ninjaID.push(parseInt(item.ID, 10));
-            }
-        });
+      parsedData.items.forEach(item => {
+        if (typeof item.ID === 'number') {
+          ninjaID.push(item.ID);
+        } else if (typeof item.ID === 'string' && /^\d+$/.test(item.ID)) {
+          ninjaID.push(parseInt(item.ID, 10));
+        }
+      });
     }
 
     return ninjaID;
   } catch (error) {
-      console.error('Error parsing JSON - ninjaDevices:', error);
-      return [];
+    console.error('Error parsing JSON - ninjaDevices:', error);
+    return [];
   }
 }
 
