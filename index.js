@@ -91,7 +91,6 @@ function update() {
     .then((data) => {
       // console.log(data);
       loadOrgs(data);
-      // getManufacturers(data);
       loadNinjaDevices(data);
 
       console.log("Refreshing...")
@@ -113,7 +112,7 @@ function loadOrgs(values) {
   fetch(url, options)
     .then((response) => {
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status} + " " + ${response.statusText}`);
+        throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
       }
       return response.json();
     })
@@ -204,8 +203,12 @@ function loadNinjaDevices(values) {
     })
     .then((data) => {
       // ninjaDevices = data;
+      // data = JSON.parse(data)
 
       // console.log(data);
+      // data.forEach(device => {
+      //   console.log(device);
+      // })
       getManufacturers(data);
       getModels(data);
       // addToSnipeIT(ninjaDevices);
@@ -218,6 +221,7 @@ function loadNinjaDevices(values) {
 // Function that gets all manufacturers from Ninja and write them to snipeIT
 // *** Might break out into two functions ***
 function getManufacturers(data) {
+  
   data.forEach(device => {
 
     // console.log(device.system.name);
@@ -238,6 +242,8 @@ function getManufacturers(data) {
     }
 
   })
+
+  console.log("Made it here!");
   // Write manufacturers to snipeit
   updateManufacturers()
 }
@@ -248,7 +254,7 @@ function updateManufacturers() {
   const url1 = `${snipeItURL}/api/v1/manufacturers`;
 
   manufacturers.forEach(manufacturer => {
-    if (!checkManufacturerExists(manufacturer)) {
+    // if (!checkManufacturerExists(manufacturer)) {
       fetch(url1, {
         method: 'POST',
         headers: {
@@ -260,13 +266,14 @@ function updateManufacturers() {
           name: manufacturer
         })
       })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
-          }
-          return response.json();
-        })
-    }
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+        }
+        return response.json();
+      })
+      .catch((error) => console.error('Error:', error));
+    // }
   })
 
   refreshManufacturers();
@@ -291,6 +298,8 @@ function checkManufacturerExists(manufacturer) {
 
 // Function that gets all manufacturers from SnipeIT and writes them to database
 function refreshManufacturers() {
+
+  console.log("Hiya Buddy");
 
   const url = `${snipeItURL}/api/v1/manufacturers`;
   const options = {
@@ -362,10 +371,10 @@ function updateModels(data) {
     category_id: 0
   }
 
-  data.forEach(device => {
+  setTimeout(() => {
+    data.forEach(device => {
 
-    if (!(device.system === undefined || device.system.model === undefined)) {
-      if (!(models.includes(device.system.model)) && device.system != undefined && device.system.model != undefined) {
+      if (!(device.system === undefined || device.system.model === undefined)) {
   
         let manufacturerName;
   
@@ -383,48 +392,71 @@ function updateModels(data) {
               model.manufacturer_id = manufacturerDetails.manufacturerId
               console.log(manufacturerDetails.manufacturerId);
             }
+            
+            if (!(models.includes(device.system.model)) && device.system != undefined && device.system.model != undefined) {
+              if (device.system === undefined || device.system.model === undefined) {
+                model.name = 'UnKNOWN'
+                model.model_number = "UKNOWN"
+              } else {
+                models.push(device.system.model);
+                model.name = device.system.model
+                model.model_number = device.system.model;
+              }
+        
+        
+              if (device.system === undefined) {
+                model.category_id = 20
+              } else {
+                if (device.system.chassisType === "DESKTOP") {
+                  model.category_id = 11
+                } else if (device.system.chassisType === "LAPTOP") {
+                  model.category_id = 10
+                } else if (device.system.chassisType === "SERVER") {
+                  model.category_id = 21
+                } else {
+                  model.category_id = 20
+                }
+              }
   
+              console.log(`Model: ${model.name} by ${manufacturerDetails.name} added to snipeit!`)
+  
+              addModel(model);
+  
+              model.name = ''
+              model.model_number = ""
+  
+            }
             // Continue with your logic here
+            
           })
           .catch((error) => {
             console.error(error.message);
             // Handle the error
           });
-  
-        if (device.system === undefined || device.system.model === undefined) {
-          model.name = 'UnKNOWN'
-          model.model_number = "UKNOWN"
-        } else {
-          models.push(device.system.model);
-          model.name = device.system.model
-          model.model_number = device.system.model;
-        }
-  
-  
-        if (device.system === undefined) {
-          model.category_id = 20
-        } else {
-          if (device.system.chassisType === "DESKTOP") {
-            model.category_id = 11
-          } else if (device.system.chassisType === "LAPTOP") {
-            model.category_id = 10
-          } else if (device.system.chassisType === "SERVER") {
-            model.category_id = 21
-          } else {
-            model.category_id = 20
-          }
-        }
-
-        // console.log(`Model: ${model.name} by ${model.manufacturer_id} added to snipeit!`)
-
-        // setTimeout({
-        //   fetch()
-        // }, 500)
-      } else {
-        // console.log(`Model ${device.system.model} already added!`)
       }
-    }
+    })
+  }, 500)
+}
+
+function addModel(model) {
+  url =  `${snipeItURL}/api/v1/models`
+
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${secrets.snipeitsecret}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(model)
   })
+  .then((response) => {
+    if (!response.ok) {
+      throw new Error(`HTTP error! Statis: ${response.status} + " " + ${response.statusText}`)
+    }
+    return response.json();
+  })
+  .catch((error) => console.error('Error:', error));
 }
 
 // Function returns promise, check if manufacturer exists
